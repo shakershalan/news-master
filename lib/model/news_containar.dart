@@ -8,7 +8,7 @@ import 'package:untitled5/my_theme.dart';
 
 import '../model/SourceResponse.dart';
 
-class NewsContainer extends StatelessWidget {
+class NewsContainer extends StatefulWidget {
   Source source;
 
   NewsContainer({
@@ -16,11 +16,45 @@ class NewsContainer extends StatelessWidget {
   });
 
   @override
+  State<NewsContainer> createState() => _NewsContainerState();
+}
+
+class _NewsContainerState extends State<NewsContainer> {
+  final scrollController = ScrollController();
+  int pageNumber = 1;
+  List<News> news = [];
+  bool shouldLodNextPage = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Setup the listener.
+    scrollController.addListener(() {
+      if (scrollController.position.atEdge) {
+        bool isTop = scrollController.position.pixels == 0;
+        if (!isTop) {
+          shouldLodNextPage = true;
+          setState(() {});
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (shouldLodNextPage) {
+      ApiManager.getNewsBySourceId(
+              sourceId: widget.source.id ?? "", pageNumber: pageNumber++)
+          .then((newsResponse) => news.addAll(newsResponse!.articles ?? []));
+      shouldLodNextPage = false;
+      setState(() {});
+    }
     return FutureBuilder<NewsResponse?>(
-      future: ApiManager.getNewsSearch(source.id ?? ""),
+      future: ApiManager.getNewsBySourceId(sourceId: widget.source.id ?? ""),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            news.isEmpty) {
           return Center(
             child: CircularProgressIndicator(
               color: MyTheme.greenColor,
@@ -48,14 +82,24 @@ class NewsContainer extends StatelessWidget {
             ],
           );
         }
+
         var newList = snapshot.data?.articles ?? [];
+        if (news.isEmpty) {
+          news = newList;
+        }
         return ListView.builder(
+          controller: scrollController,
           itemBuilder: (context, index) {
-            return NewsItem(news: newList[index]);
+            return NewsItem(news: news[index]);
           },
-          itemCount: newList.length,
+          itemCount: news.length,
         );
       },
     );
+  }
+
+  void dispose() {
+    scrollController.dispose();
+    super.dispose();
   }
 }
