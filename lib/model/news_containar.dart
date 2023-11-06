@@ -45,7 +45,7 @@ class _NewsContainerState extends State<NewsContainer> {
   Widget build(BuildContext context) {
     if (shouldLodNextPage) {
       ApiManager.getNewsBySourceId(
-              sourceId: widget.source.id ?? "", pageNumber: pageNumber++)
+              sourceId: widget.source.id ?? "", pageNumber: ++pageNumber)
           .then((newsResponse) => news.addAll(newsResponse!.articles ?? []));
       shouldLodNextPage = false;
       setState(() {});
@@ -86,6 +86,9 @@ class _NewsContainerState extends State<NewsContainer> {
         var newList = snapshot.data?.articles ?? [];
         if (news.isEmpty) {
           news = newList;
+        } else if (news.first.title != newList.first.title) {
+          news = newList;
+          scrollController.jumpTo(0);
         }
         return ListView.builder(
           controller: scrollController,
